@@ -526,12 +526,37 @@
       margin: 0 auto 14px;
     }
 
-    .sticker-picker-title {
-      text-align: center;
-      color: #666;
-      font-weight: bold;
-      font-size: 0.9em;
+    .sticker-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       margin-bottom: 6px;
+    }
+
+    .sticker-tabs .sticker-tab {
+      padding: 5px 16px;
+      font-size: 0.85em;
+      border-radius: 999px;
+      background: #f0f0f0;
+      color: #666;
+    }
+
+    .sticker-tabs .sticker-tab.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .sticker-tab-hint {
+      margin-left: auto;
+      color: #999;
+      font-size: 0.8em;
+    }
+
+    .sticker-grid > .sticker-empty-hint {
+      flex: 1 1 auto;
+      width: auto;
+      align-self: center;
+      padding: 16px 8px;
     }
 
     /* 미리보기 화면 (화면 높이에 맞춘 폭은 fitPreviewToScreen에서 계산) */
@@ -992,7 +1017,11 @@
       </div>
 
       <div class="sticker-picker edit-only">
-        <p class="sticker-picker-title">✨ 눌러서 스티커 붙이기</p>
+        <div class="sticker-tabs">
+          <button class="sticker-tab" data-tab="emoji" onclick="selectStickerTab('emoji')">이모지</button>
+          <button class="sticker-tab" data-tab="special" onclick="selectStickerTab('special')">특별</button>
+          <span class="sticker-tab-hint">눌러서 붙이기</span>
+        </div>
         <div class="sticker-grid" id="previewStickerPicker"></div>
       </div>
 
@@ -1018,7 +1047,8 @@
         <label for="adminFrameUpload">프레임 올리기</label>
         <div class="frame-upload-info">
           <p>• 크기: <strong>1200 × 1800 픽셀</strong> (4×6 인치) 권장, PNG 또는 JPG</p>
-          <p>• 프레임이 아래에 깔리고 사진이 그 위에 올라갑니다 (위 70 / 좌우 60 / 아래 180 픽셀 여백)</p>
+          <p>• 프레임이 아래에 깔리고 사진 4장이 그 위에 올라갑니다</p>
+          <p id="frameGuideSlots">• 사진 칸: 가로 500 × 세로 667 (2×2) / 위 100 · 좌우 85 · 사이 30 · 아래 336 픽셀 여백</p>
           <p>• 올린 파일은 이 태블릿에만 저장됩니다</p>
         </div>
       </div>
@@ -1061,6 +1091,20 @@
     const ADMIN_PIN = '1234';                // 관리 화면 비밀번호
     const FRAME_W = 1200, FRAME_H = 1800;    // 프레임 저장 크기
     const STICKER_MAX = 1000;                // 스티커 긴 변 최대 픽셀
+
+    // 출력물 사진 칸 (1200×1800 기준, 2×2, 칸은 3:4 비율)
+    const PHOTO_W = 500, PHOTO_H = 667;      // 사진 칸 하나의 크기
+    const PHOTO_GAP = 30;                    // 사진 사이 간격
+    const PHOTO_TOP = 100;                   // 위 여백
+    const PHOTO_LEFT = 85;                   // 좌우 여백 (아래 여백은 나머지 = 336)
+
+    // 사진 보정 (뽀샤시) — 촬영 순간 저장할 때 한 번만 적용
+    const BEAUTY_ENABLED = true;             // false면 보정 없이 원본 저장
+    const BEAUTY_BRIGHTNESS = 1.1;           // 밝기 (1 = 원본)
+    const BEAUTY_CONTRAST = 0.95;            // 대비 (1 = 원본, 낮을수록 부드러움)
+    const BEAUTY_SATURATE = 1.05;            // 채도 (1 = 원본)
+    const BEAUTY_SOFTNESS = 0.35;            // 흐린 사본을 겹치는 투명도 (0 = 끔)
+    const BEAUTY_BLUR_PX = 6;                // 흐린 사본의 흐림 정도 (1080px 사진 기준)
 
     // ============================================================
     // 전역 상태
@@ -1483,6 +1527,54 @@
       }
     }
 
+    // ============================================================
+    // 사진 보정 (뽀샤시)
+    // ============================================================
+    const BEAUTY_COLOR_FILTER = `brightness(${BEAUTY_BRIGHTNESS}) contrast(${BEAUTY_CONTRAST}) saturate(${BEAUTY_SATURATE})`;
+
+    // 캔버스 filter를 실제로 지원하는지 (지원 안 하면 값이 그대로 남지 않음)
+    let canvasFilterOk = null;
+    function canvasFilterSupported() {
+      if (canvasFilterOk === null) {
+        try {
+          const ctx = document.createElement('canvas').getContext('2d');
+          ctx.filter = 'blur(1px)';
+          canvasFilterOk = ctx.filter === 'blur(1px)';
+        } catch (err) {
+          canvasFilterOk = false;
+        }
+      }
+      return canvasFilterOk;
+    }
+
+    // 밝기·대비·채도를 조정해 그린 뒤, 흐린 사본을 낮은 투명도로 겹쳐 소프트 포커스
+    function applyBeauty(ctx, canvas, draw) {
+      ctx.filter = BEAUTY_COLOR_FILTER;
+      draw();
+      ctx.filter = 'none';
+
+      if (BEAUTY_SOFTNESS > 0 && BEAUTY_BLUR_PX > 0) {
+        const copy = document.createElement('canvas');
+        copy.width = canvas.width;
+        copy.height = canvas.height;
+        copy.getContext('2d').drawImage(canvas, 0, 0);
+
+        ctx.save();
+        ctx.globalAlpha = BEAUTY_SOFTNESS;
+        ctx.filter = `blur(${BEAUTY_BLUR_PX}px)`;
+        ctx.drawImage(copy, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    // 촬영 화면 실시간 영상에도 비슷한 느낌 (소프트 포커스는 CSS로 겹치기 어려워 살짝 흐림으로 대신)
+    function applyLivePreviewFilter() {
+      const video = document.getElementById('video');
+      video.style.filter = BEAUTY_ENABLED
+        ? `${BEAUTY_COLOR_FILTER}${BEAUTY_SOFTNESS > 0 ? ' blur(0.4px)' : ''}`
+        : 'none';
+    }
+
     async function capturePhotoAuto() {
       clearInterval(countdownInterval);
       countdownInterval = null;
@@ -1517,11 +1609,26 @@
       }
 
       // 화면에 보이는 그대로(거울처럼 좌우반전) 저장
-      ctx.save();
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-      ctx.restore();
+      const drawMirrored = () => {
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      };
+
+      if (BEAUTY_ENABLED && canvasFilterSupported()) {
+        try {
+          applyBeauty(ctx, canvas, drawMirrored);
+        } catch (err) {
+          console.error('사진 보정 실패, 원본으로 저장:', err);
+          ctx.filter = 'none';
+          ctx.globalAlpha = 1;
+          drawMirrored();
+        }
+      } else {
+        drawMirrored();
+      }
 
       capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.95));
       updateCapturedPhotos();
@@ -1653,6 +1760,7 @@
     function enterDecoratePhase() {
       isLocked = false;
       hasOutput = false;
+      stickerTab = null;
       applyDefaultFrame();
       updateStep(3);
       showScreen('frameScreen');
@@ -1752,7 +1860,7 @@
         renderFrameList();
         selectFrameById(added[added.length - 1].id);
       } else {
-        renderPreviewStickerPicker();
+        selectStickerTab('special');
         added.forEach(asset => addStickerInstance(asset.data));
       }
     }
@@ -1777,13 +1885,37 @@
       return defaultStickers;
     }
 
+    // 스티커 탭: 'emoji' = 기본 이모지, 'special' = 관리 화면에서 올린 스티커
+    let stickerTab = null;   // null이면 다음에 그릴 때 올린 스티커 유무로 정함
+
+    function selectStickerTab(tab) {
+      stickerTab = tab;
+      renderPreviewStickerPicker();
+    }
+
     // 스티커 선택 목록 (누르면 사진 위에 추가)
     function renderPreviewStickerPicker() {
+      if (!stickerTab) stickerTab = library.sticker.length > 0 ? 'special' : 'emoji';
+      document.querySelectorAll('.sticker-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === stickerTab);
+      });
+
       const picker = document.getElementById('previewStickerPicker');
       picker.innerHTML = '';
-      picker.appendChild(makeGalleryTile('sticker', '갤러리'));
+      picker.scrollLeft = 0;
 
-      const sources = [...library.sticker.map(a => a.data), ...getDefaultStickers()];
+      let sources;
+      if (stickerTab === 'special') {
+        picker.appendChild(makeGalleryTile('sticker', '갤러리'));
+        sources = library.sticker.map(a => a.data);
+      } else {
+        sources = getDefaultStickers();
+      }
+
+      if (sources.length === 0) {
+        picker.insertAdjacentHTML('beforeend', '<p class="sticker-empty-hint">스티커가 없어요</p>');
+        return;
+      }
       sources.forEach(src => {
         const div = document.createElement('div');
         div.className = 'sticker-thumb clickable';
@@ -2034,33 +2166,41 @@
         const frameImg = await loadImage(selectedFrame);
         ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
       }
-      await drawPhotosOnCanvas(ctx, canvas.width, canvas.height);
+      await drawPhotosOnCanvas(ctx);
     }
 
-    async function drawPhotosOnCanvas(ctx, canvasWidth, canvasHeight) {
-      const marginTop = 70;
-      const marginBottom = 180;
-      const marginSide = 60;
-      const gap = 30;
-
-      const availableHeight = canvasHeight - marginTop - marginBottom;
-      const availableWidth = canvasWidth - (marginSide * 2);
-
-      const photoWidth = (availableWidth - gap) / 2;
-      const photoHeight = (availableHeight - gap) / 2;
-
-      // 선택 순서대로: 좌상, 우상, 좌하, 우하
-      const positions = [
-        { x: marginSide, y: marginTop },
-        { x: marginSide + photoWidth + gap, y: marginTop },
-        { x: marginSide, y: marginTop + photoHeight + gap },
-        { x: marginSide + photoWidth + gap, y: marginTop + photoHeight + gap }
+    // 사진 칸 4개 좌표 (선택 순서대로: 좌상, 우상, 좌하, 우하) — 1200×1800 기준
+    function getPhotoSlots() {
+      const x2 = PHOTO_LEFT + PHOTO_W + PHOTO_GAP;
+      const y2 = PHOTO_TOP + PHOTO_H + PHOTO_GAP;
+      return [
+        { x: PHOTO_LEFT, y: PHOTO_TOP, w: PHOTO_W, h: PHOTO_H },
+        { x: x2,         y: PHOTO_TOP, w: PHOTO_W, h: PHOTO_H },
+        { x: PHOTO_LEFT, y: y2,        w: PHOTO_W, h: PHOTO_H },
+        { x: x2,         y: y2,        w: PHOTO_W, h: PHOTO_H }
       ];
+    }
 
+    // 늘이지 않고 칸을 꽉 채우도록 가운데 기준으로 잘라 그린다
+    function drawImageCover(ctx, img, slot) {
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      const slotAspect = slot.w / slot.h;
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+      if (imgAspect > slotAspect) {
+        sw = sh * slotAspect;
+        sx = (img.naturalWidth - sw) / 2;
+      } else {
+        sh = sw / slotAspect;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, slot.x, slot.y, slot.w, slot.h);
+    }
+
+    // 화면 미리보기·인쇄·저장 모두 이 함수로 사진을 배치한다 (캔버스는 항상 FRAME_W×FRAME_H)
+    async function drawPhotosOnCanvas(ctx) {
+      const slots = getPhotoSlots();
       const images = await Promise.all(selectedPhotos.map(photoIdx => loadImage(capturedPhotos[photoIdx])));
-      images.forEach((img, i) => {
-        ctx.drawImage(img, positions[i].x, positions[i].y, photoWidth, photoHeight);
-      });
+      images.forEach((img, i) => drawImageCover(ctx, img, slots[i]));
     }
 
     // 프레임 + 사진 + 스티커를 하나의 캔버스에 합성
@@ -2077,7 +2217,7 @@
         const frameImg = await loadImage(selectedFrame);
         ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
       }
-      await drawPhotosOnCanvas(ctx, canvas.width, canvas.height);
+      await drawPhotosOnCanvas(ctx);
 
       for (const sticker of placedStickers) {
         const img = await loadImage(sticker.src);
@@ -2198,6 +2338,10 @@
       document.getElementById('startDecorateSec').textContent = DECORATE_SECONDS;
       document.getElementById('timerDisplay').textContent = CAPTURE_SECONDS;
       document.getElementById('totalShots').textContent = TOTAL_SHOTS;
+      const bottomMargin = FRAME_H - (PHOTO_TOP + PHOTO_H * 2 + PHOTO_GAP);
+      document.getElementById('frameGuideSlots').textContent =
+        `• 사진 칸: 가로 ${PHOTO_W} × 세로 ${PHOTO_H} (2×2) / 위 ${PHOTO_TOP} · 좌우 ${PHOTO_LEFT} · 사이 ${PHOTO_GAP} · 아래 ${bottomMargin} 픽셀 여백`;
+      applyLivePreviewFilter();
 
       await loadLibrary();
       renderLibrarySummary();
