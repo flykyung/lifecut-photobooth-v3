@@ -225,6 +225,26 @@
       pointer-events: none;
     }
 
+    /* 찰칵 플래시 (평소엔 투명, 찍는 순간 하얗게 → 서서히 복구) */
+    .camera-flash {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .camera-flash.flash {
+      animation: cameraFlash 600ms ease-out;
+    }
+
+    @keyframes cameraFlash {
+      0%   { opacity: 1; }
+      25%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
     .cam-count,
     .cam-progress {
       position: absolute;
@@ -968,6 +988,7 @@
           <div class="cam-count"><span id="photoCount">0</span>/<span id="totalShots">6</span></div>
           <div class="cam-timer" id="timerDisplay">8</div>
           <div class="cam-progress" id="photoProgress">1번째 사진 준비중...</div>
+          <div class="camera-flash" id="cameraFlash"></div>
         </div>
         <div class="captured-photos" id="capturedPhotos"></div>
       </div>
@@ -1091,6 +1112,7 @@
     const ADMIN_PIN = '1234';                // 관리 화면 비밀번호
     const FRAME_W = 1200, FRAME_H = 1800;    // 프레임 저장 크기
     const STICKER_MAX = 1000;                // 스티커 긴 변 최대 픽셀
+    const FLASH_MS = 600;                    // 찰칵 플래시(하얀 화면)가 사라지는 데 걸리는 시간
 
     // 출력물 사진 칸 (1200×1800 기준, 2×2, 칸은 3:4 비율)
     const PHOTO_W = 500, PHOTO_H = 667;      // 사진 칸 하나의 크기
@@ -1575,6 +1597,15 @@
         : 'none';
     }
 
+    // 찰칵! 플래시 터뜨린 것처럼 카메라 화면을 하얗게 했다가 서서히 복구
+    function flashCamera() {
+      const el = document.getElementById('cameraFlash');
+      el.style.animationDuration = FLASH_MS + 'ms';
+      el.classList.remove('flash');
+      void el.offsetWidth;   // 애니메이션을 처음부터 다시 시작하게
+      el.classList.add('flash');
+    }
+
     async function capturePhotoAuto() {
       clearInterval(countdownInterval);
       countdownInterval = null;
@@ -1630,6 +1661,14 @@
         drawMirrored();
       }
 
+      // 화면을 이미 캔버스에 담은 뒤라 사진에는 흰 화면이 찍히지 않음.
+      // 사진 변환(toDataURL)이 화면을 잠깐 멈출 수 있어, 플래시가 먼저 보이도록 한 프레임 기다린다
+      flashCamera();
+      await new Promise(resolve => {
+        requestAnimationFrame(() => setTimeout(resolve, 0));
+        setTimeout(resolve, 100);   // 화면이 가려져 프레임이 멈춰도 촬영이 멈추지 않게
+      });
+      if (token !== sessionToken) return;
       capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.95));
       updateCapturedPhotos();
       currentPhotoNumber++;
