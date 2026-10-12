@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#667eea">
+  <title>인생네컷</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    body.has-timer {
+      padding-top: 80px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 1200px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    h1 {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 30px;
+      font-size: 1.6em;
+    }
+
+    /* 상단 남은 시간 표시줄 */
+    .top-timer {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 12px 10px;
+      text-align: center;
+      background: #4caf50;
+      color: white;
+      font-size: 1.5em;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .top-timer .timer-value {
+      font-size: 1.4em;
+      margin: 0 4px;
+    }
+
+    .top-timer.warn {
+      background: #f44336;
+      animation: warnPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes warnPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.75; }
+    }
+
+    /* 안내 토스트 */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      background: rgba(0,0,0,0.85);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 1.05em;
+      max-width: 90%;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      padding: 0 20px;
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #f0f0f0;
+      margin: 0 5px;
+      border-radius: 10px;
+      font-weight: bold;
+      color: #999;
+      transition: all 0.3s;
+      font-size: 0.9em;
+    }
+
+    .step.active {
+      background: #667eea;
+      color: white;
+      transform: scale(1.05);
+    }
+
+    .step.completed {
+      background: #4caf50;
+      color: white;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    /* 시작 화면 */
+    .start-screen {
+      text-align: center;
+    }
+
+    .start-screen p {
+      font-size: 1.2em;
+      margin-bottom: 30px;
+      color: #666;
+      line-height: 1.8;
+    }
+
+    .lib-summary {
+      font-size: 0.9em !important;
+      color: #999 !important;
+      margin-top: 20px;
+      margin-bottom: 0 !important;
+    }
+
+    .admin-link {
+      background: none;
+      color: #bbb;
+      font-size: 0.8em;
+      font-weight: normal;
+      min-width: 0;
+      padding: 8px 12px;
+      margin-top: 30px;
+    }
+
+    /* 촬영 화면 */
+    .photo-count {
+      text-align: center;
+      font-size: 1.3em;
+      margin-bottom: 20px;
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    .timer-container {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 15px;
+    }
+
+    .timer-display {
+      font-size: 55px;
+      color: white;
+      font-weight: bold;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      margin-bottom: 10px;
+    }
+
+    .photo-progress {
+      font-size: 24px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .countdown-animation {
+      animation: pulse 1s ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    .capture-layout {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .camera-container {
+      flex: 2;
+      position: relative;
+      background: #000;
+      border-radius: 15px;
+      overflow: hidden;
+      aspect-ratio: 3/4;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    #canvas {
+      display: none;
+    }
+
+    .captured-photos {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .captured-photo {
+      aspect-ratio: 3/4;
+      background: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 3px solid #ddd;
+    }
+
+    .captured-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* 선택 화면 */
+    .selection-info {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+
+    .selection-info p {
+      color: #666;
+      margin: 5px 0;
+    }
+
+    .selection-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .selectable-photo {
+      position: relative;
+      aspect-ratio: 3/4;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 3px solid #ddd;
+      transition: all 0.3s;
+    }
+
+    .selectable-photo:hover {
+      transform: scale(1.05);
+    }
+
+    .selectable-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .selectable-photo.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .selection-order {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #667eea;
+      color: white;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* 프레임 선택 화면 */
+    .frame-selection {
+      margin-bottom: 20px;
+    }
+
+    .frame-upload {
+      margin-bottom: 20px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .frame-upload input[type="file"] {
+      display: none;
+    }
+
+    .frame-upload label,
+    .file-label {
+      display: inline-block;
+      padding: 12px 30px;
+      background: #667eea;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .frame-upload label:hover,
+    .file-label:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+
+    .frame-upload-info {
+      margin-top: 15px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .frame-upload-info p {
+      color: #666;
+      font-size: 0.95em;
+      margin: 5px 0;
+      text-align: left;
+    }
+
+    .frame-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .frame-option {
+      aspect-ratio: 2/3;
+      border: 3px solid #ddd;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      overflow: hidden;
+      background: #f0f0f0;
+      position: relative;
+    }
+
+    .frame-option:hover {
+      transform: scale(1.05);
+    }
+
+    .frame-option.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .frame-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .sticker-empty-hint {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #999;
+      padding: 20px;
+    }
+
+    .sticker-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .sticker-thumb {
+      aspect-ratio: 1/1;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8f9fa;
+      transition: all 0.2s;
+    }
+
+    .sticker-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .sticker-thumb.clickable {
+      cursor: pointer;
+    }
+
+    .sticker-thumb.clickable:hover {
+      transform: scale(1.05);
+      border-color: #667eea;
+    }
+
+    .sticker-picker {
+      margin-bottom: 20px;
+    }
+
+    .sticker-picker-title {
+      text-align: center;
+      color: #666;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    /* 미리보기 화면 */
+    .preview-container {
+      max-width: 500px;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+
+    #stickerLayer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: auto;
+    }
+
+    .sticker-item {
+      position: absolute;
+      pointer-events: auto;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    .sticker-item img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .sticker-item.active {
+      outline: 2px dashed #667eea;
+      outline-offset: 2px;
+    }
+
+    .sticker-delete,
+    .sticker-resize {
+      position: absolute;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .sticker-delete {
+      top: -14px;
+      right: -14px;
+      width: 28px;
+      height: 28px;
+      background: #f44336;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .sticker-resize {
+      bottom: -14px;
+      right: -14px;
+      width: 26px;
+      height: 26px;
+      background: #667eea;
+      cursor: se-resize;
+    }
+
+    .sticker-item.active .sticker-delete,
+    .sticker-item.active .sticker-resize {
+      display: flex;
+    }
+
+    .preview-hint {
+      text-align: center;
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 15px;
+    }
+
+    #finalCanvas {
+      width: 100%;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .save-notice {
+      text-align: center;
+      padding: 20px;
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .save-notice p {
+      color: #856404;
+      font-size: 1.1em;
+      font-weight: bold;
+      margin: 5px 0;
+    }
+
+    /* 확정(시간 종료/꾸미기 끝내기) 상태 */
+    .locked-only {
+      display: none;
+    }
+
+    #previewScreen.locked .edit-only {
+      display: none !important;
+    }
+
+    #previewScreen.locked .save-notice.locked-only {
+      display: block;
+    }
+
+    #previewScreen.locked .btn-container.locked-only {
+      display: flex;
+    }
+
+    #previewScreen.locked #stickerLayer {
+      pointer-events: none;
+    }
+
+    /* 관리 화면 */
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin: 10px 0 25px;
+    }
+
+    .admin-item {
+      position: relative;
+      aspect-ratio: 2/3;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f0f0f0;
+    }
+
+    .admin-item.sticker {
+      aspect-ratio: 1/1;
+    }
+
+    .admin-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .admin-del {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      min-width: 0;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 50%;
+      background: #f44336;
+      color: white;
+      font-size: 14px;
+    }
+
+    .admin-title {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+
+    .admin-section-title {
+      color: #666;
+      font-weight: bold;
+      margin: 20px 0 5px;
+    }
+
+    /* 버튼 스타일 */
+    .btn-container {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 15px 40px;
+      font-size: 1.1em;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+      min-width: 150px;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+      transform: translateY(-2px);
+    }
+
+    .btn-success {
+      background: #4caf50;
+      color: white;
+      font-size: 1.3em;
+      padding: 20px 50px;
+    }
+
+    .btn-success:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #da190b;
+      transform: translateY(-2px);
+    }
+
+    /* 인쇄 영역 (화면에는 안 보임) */
+    #printArea {
+      display: none;
+    }
+
+    @page {
+      size: 4in 6in;
+      margin: 0;
+    }
+
+    @media print {
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        min-height: 0 !important;
+        display: block !important;
+      }
+
+      body > *:not(#printArea) {
+        display: none !important;
+      }
+
+      #printArea {
+        display: block !important;
+      }
+
+      #printArea img {
+        display: block;
+        width: 4in;
+        height: 6in;
+      }
+    }
+
+    /* 반응형 */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 1.15em;
+      }
+
+      .step {
+        font-size: 0.7em;
+        padding: 8px 4px;
+      }
+
+      .capture-layout {
+        flex-direction: column;
+      }
+
+      .captured-photos {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+      }
+
+      .selection-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+      }
+
+      button {
+        padding: 12px 25px;
+        font-size: 1em;
+        min-width: 120px;
+      }
+
+      .timer-display {
+        font-size: 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 상단 남은 시간 (사진 고르기 / 꾸미기 단계에서만 보임) -->
+  <div class="top-timer" id="topTimer">
+    <span id="topTimerLabel"></span>
+    <span class="timer-value" id="topTimerValue">0</span>초
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="container">
+    <h1 id="appTitle">인생네컷</h1>
+
+    <div class="step-indicator">
+      <div class="step active" data-step="0">시작</div>
+      <div class="step" data-step="1">촬영</div>
+      <div class="step" data-step="2">선택</div>
+      <div class="step" data-step="3">프레임</div>
+      <div class="step" data-step="4">완성</div>
+    </div>
+
+    <!-- 시작 화면 -->
+    <div class="screen active" id="startScreen">
+      <div class="start-screen">
+        <p>
+          📷 <span id="startCaptureSec">8</span>초 간격으로 6장의 사진을 자동 촬영합니다<br>
+          🎯 마음에 드는 4장을 <span id="startSelectSec">60</span>초 안에 선택하세요<br>
+          🖼️ 프레임과 스티커로 <span id="startDecorateSec">180</span>초 안에 꾸며요<br>
+          🖨️ 인쇄해서 추억을 간직하세요!
+        </p>
+        <button class="btn-primary" onclick="startPhotoSession()">시작하기</button>
+        <p class="lib-summary" id="libSummary"></p>
+        <button class="admin-link" onclick="openAdmin()">⚙️ 관리</button>
+      </div>
+    </div>
+
+    <!-- 촬영 화면 -->
+    <div class="screen" id="cameraScreen">
+      <div class="photo-count">📸 <span id="photoCount">0</span> / 6 장</div>
+
+      <div class="timer-container">
+        <div class="timer-display" id="timerDisplay">8</div>
+        <div class="photo-progress" id="photoProgress">1번째 사진 준비중...</div>
+      </div>
+
+      <div class="capture-layout">
+        <div class="camera-container">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="canvas"></canvas>
+        </div>
+        <div class="captured-photos" id="capturedPhotos"></div>
+      </div>
+
+      <div class="btn-container">
+        <button class="btn-secondary" onclick="resetSession()">처음으로</button>
+      </div>
+    </div>
+
+    <!-- 선택 화면 -->
+    <div class="screen" id="selectionScreen">
+      <div class="selection-info">
+        <div class="photo-count">🎯 4장을 선택해주세요 (<span id="selectedCount">0</span>/4)</div>
+        <p style="font-size: 0.9em; color: #999;">💡 선택한 순서대로 배치됩니다 (좌→우, 위→아래)</p>
+        <p style="font-size: 0.9em; color: #999;">⏱️ 시간이 끝나면 남은 칸은 촬영 순서대로 자동으로 채워져요</p>
+      </div>
+      <div class="selection-grid" id="selectionGrid"></div>
+      <div class="btn-container">
+        <button class="btn-primary" id="confirmSelectionBtn" onclick="confirmSelection()" disabled>선택 완료</button>
+        <button class="btn-secondary" onclick="resetSession()">처음으로</button>
+      </div>
+    </div>
+
+    <!-- 프레임 선택 화면 -->
+    <div class="screen" id="frameScreen">
+      <div class="photo-count">🖼️ 프레임을 골라주세요</div>
+      <div class="frame-selection">
+        <div class="frame-list" id="frameList"></div>
+      </div>
+      <div class="btn-container">
+        <button class="btn-primary" onclick="goToPreview()">다음 (스티커 붙이기)</button>
+      </div>
+    </div>
+
+    <!-- 스티커 꾸미기 / 완성 화면 -->
+    <div class="screen" id="previewScreen">
+      <div class="photo-count" id="previewTitle">✨ 스티커를 붙여 꾸며 보세요!</div>
+
+      <div class="save-notice locked-only">
+        <p>🖨️ 아래 인쇄하기를 누르고, 인쇄 창에서 '인쇄'를 눌러 주세요!</p>
+      </div>
+
+      <p class="preview-hint edit-only">💡 스티커는 손가락으로 움직이고, 파란 점을 끌어서 크기·회전을 조절하세요</p>
+
+      <div class="preview-container">
+        <canvas id="finalCanvas"></canvas>
+        <div id="stickerLayer"></div>
+      </div>
+
+      <div class="sticker-picker edit-only">
+        <p class="sticker-picker-title">✨ 스티커 추가하기</p>
+        <div class="sticker-grid" id="previewStickerPicker"></div>
+      </div>
+
+      <div class="btn-container edit-only">
+        <button class="btn-success" onclick="finishDecorationEarly()">✅ 꾸미기 끝내기</button>
+        <button class="btn-secondary" onclick="goToFrame()">프레임 변경</button>
+      </div>
+
+      <div class="btn-container locked-only">
+        <button class="btn-success" onclick="printPhoto()">🖨️ 인쇄하기</button>
+        <button class="btn-secondary" onclick="downloadPhoto()">💾 저장하기</button>
+        <button class="btn-danger" onclick="nextCustomer()">다음 손님</button>
+      </div>
+    </div>
+
+    <!-- 관리 화면 (프레임·스티커 저장소) -->
+    <div class="screen" id="adminScreen">
+      <h2 class="admin-title">⚙️ 관리 — 프레임·스티커 저장소</h2>
+
+      <div class="frame-upload">
+        <p class="admin-section-title" style="margin-top:0;">🖼️ 프레임 (<span id="adminFrameCount">0</span>장)</p>
+        <input type="file" id="adminFrameUpload" accept="image/*" multiple onchange="uploadAssets(event, 'frame')">
+        <label for="adminFrameUpload">프레임 올리기</label>
+        <div class="frame-upload-info">
+          <p>• 크기: <strong>1200 × 1800 픽셀</strong> (4×6 인치) 권장, PNG 또는 JPG</p>
+          <p>• 프레임이 아래에 깔리고 사진이 그 위에 올라갑니다 (위 70 / 좌우 60 / 아래 180 픽셀 여백)</p>
+          <p>• 올린 파일은 이 태블릿에만 저장됩니다</p>
+        </div>
+      </div>
+      <div class="admin-grid" id="adminFrameList"></div>
+
+      <div class="frame-upload">
+        <p class="admin-section-title" style="margin-top:0;">✨ 스티커 (<span id="adminStickerCount">0</span>장)</p>
+        <input type="file" id="adminStickerUpload" accept="image/*" multiple onchange="uploadAssets(event, 'sticker')">
+        <label for="adminStickerUpload">스티커 올리기</label>
+        <div class="frame-upload-info">
+          <p>• 투명 배경 PNG 권장 (너무 크면 자동으로 줄여서 저장합니다)</p>
+        </div>
+      </div>
+      <div class="admin-grid" id="adminStickerList"></div>
+
+      <div class="btn-container">
+        <button class="btn-secondary" onclick="exportBackup()">백업 내보내기</button>
+        <input type="file" id="backupImport" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
+        <button class="btn-secondary" onclick="document.getElementById('backupImport').click()">백업 불러오기</button>
+        <button class="btn-danger" onclick="clearAllAssets()">전체 삭제</button>
+        <button class="btn-primary" onclick="closeAdmin()">돌아가기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 인쇄 전용 영역 -->
+  <div id="printArea"><img id="printImage" alt=""></div>
+
+  <script>
+    // ============================================================
+    // 설정 — 필요하면 여기 값만 고치면 됩니다
+    // ============================================================
+    const APP_TITLE = '📸 인생네컷';        // 화면 맨 위 제목
+    const FILE_PREFIX = '인생네컷';          // 저장 파일 이름 앞부분
+    const CAPTURE_SECONDS = 8;               // 사진 한 장당 촬영 카운트다운
+    const SELECT_SECONDS = 60;               // 사진 고르기 제한 시간
+    const DECORATE_SECONDS = 180;            // 프레임·스티커 꾸미기 제한 시간
+    const TOTAL_SHOTS = 6;                   // 촬영 장수
+    const PICK_COUNT = 4;                    // 고르는 장수 (2×2 배치라 4 고정)
+    const ADMIN_PIN = '1234';                // 관리 화면 비밀번호
+    const FRAME_W = 1200, FRAME_H = 1800;    // 프레임 저장 크기
+    const STICKER_MAX = 1000;                // 스티커 긴 변 최대 픽셀
+
+    // ============================================================
+    // 전역 상태
+    // ============================================================
+    let currentStep = 0;
+    let capturedPhotos = [];
+    let selectedPhotos = [];
+    let selectedFrame = 'none';      // 'none' 또는 프레임 data URL
+    let selectedFrameId = null;      // 저장소 id (null이면 프레임 없음)
+    let stream = null;
+    let countdownInterval = null;
+    let remainingTime = CAPTURE_SECONDS;
+    let currentPhotoNumber = 1;
+    let isCapturing = false;
+    let sessionToken = 0;            // 처음으로/리셋 시 늦게 도착한 비동기 작업을 버리기 위한 표식
+    let placedStickers = [];
+    let stickerIdSeq = 0;
+    let activeStickerId = null;
+    let isLocked = false;            // 꾸미기 확정 여부
+    let hasOutput = false;           // 인쇄/저장을 한 번이라도 했는지
+
+    // 프레임·스티커 저장소 (메모리 사본)
+    const library = { frame: [], sticker: [] };   // 항목: { id, data }
+    let dbAvailable = true;
+    let memSeq = 0;
+
+    // ============================================================
+    // 안내 토스트
+    // ============================================================
+    let toastTimer = null;
+    function toast(msg, ms = 2800) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+    }
+
+    // ============================================================
+    // 단계별 제한 시간 (끝나는 시각 기준이라 화면이 느려져도 오차가 쌓이지 않음)
+    // ============================================================
+    let phaseTimer = null;
+    let phaseDeadline = 0;
+    let phaseOnEnd = null;
+
+    function startPhaseTimer(seconds, label, onEnd) {
+      stopPhaseTimer();
+      phaseDeadline = Date.now() + seconds * 1000;
+      phaseOnEnd = onEnd;
+      document.getElementById('topTimerLabel').textContent = label;
+      document.getElementById('topTimer').style.display = 'block';
+      document.body.classList.add('has-timer');
+      tickPhaseTimer();
+      phaseTimer = setInterval(tickPhaseTimer, 250);
+    }
+
+    function tickPhaseTimer() {
+      const remain = Math.max(0, Math.ceil((phaseDeadline - Date.now()) / 1000));
+      document.getElementById('topTimerValue').textContent = remain;
+      document.getElementById('topTimer').classList.toggle('warn', remain <= 10);
+      if (remain <= 0) {
+        const cb = phaseOnEnd;
+        stopPhaseTimer();
+        if (cb) cb();
+      }
+    }
+
+    function stopPhaseTimer() {
+      if (phaseTimer) clearInterval(phaseTimer);
+      phaseTimer = null;
+      phaseOnEnd = null;
+      document.getElementById('topTimer').style.display = 'none';
+      document.getElementById('topTimer').classList.remove('warn');
+      document.body.classList.remove('has-timer');
+    }
+
+    // ============================================================
+    // IndexedDB — 프레임·스티커를 이 태블릿에 저장 (새로고침/재접속해도 유지)
+    // ============================================================
+    const DB_NAME = 'lifecut-photobooth-v3';
+    const STORE = 'assets';
+    let dbPromise = null;
+
+    function openDB() {
+      if (!dbPromise) {
+        dbPromise = new Promise((resolve, reject) => {
+          if (!window.indexedDB) { reject(new Error('IndexedDB 미지원')); return; }
+          const req = indexedDB.open(DB_NAME, 1);
+          req.onupgradeneeded = () => {
+            req.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+      return dbPromise;
+    }
+
+    async function dbGetAll() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbWrite(action) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        const req = action(tx.objectStore(STORE));
+        tx.oncomplete = () => resolve(req ? req.result : undefined);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('저장 중단'));
+      });
+    }
+
+    const dbAdd = (rec) => dbWrite(store => store.add(rec));
+    const dbDelete = (id) => dbWrite(store => store.delete(id));
+    const dbClear = () => dbWrite(store => store.clear());
+
+    async function loadLibrary() {
+      try {
+        const rows = await dbGetAll();
+        rows.sort((a, b) => a.id - b.id);
+        rows.forEach(r => {
+          if (library[r.type]) library[r.type].push({ id: r.id, data: r.data });
+        });
+        dbAvailable = true;
+      } catch (err) {
+        console.error('저장소 열기 실패:', err);
+        dbAvailable = false;
+      }
+    }
+
+    async function addAsset(type, data) {
+      let id;
+      if (dbAvailable) {
+        id = await dbAdd({ type, data, createdAt: Date.now() });
+      } else {
+        id = 'm' + (++memSeq);
+      }
+      library[type].push({ id, data });
+    }
+
+    async function deleteAsset(type, id) {
+      if (!confirm('이 항목을 삭제할까요?')) return;
+      if (dbAvailable && typeof id === 'number') {
+        try { await dbDelete(id); } catch (err) { console.error(err); toast('삭제에 실패했어요'); return; }
+      }
+      library[type] = library[type].filter(a => a.id !== id);
+      renderAdmin();
+      renderLibrarySummary();
+    }
+
+    async function clearAllAssets() {
+      if (!confirm('저장된 프레임과 스티커를 모두 삭제합니다.\n되돌릴 수 없어요. 계속할까요?')) return;
+      try {
+        if (dbAvailable) await dbClear();
+      } catch (err) {
+        console.error(err);
+        toast('삭제에 실패했어요');
+        return;
+      }
+      library.frame = [];
+      library.sticker = [];
+      renderAdmin();
+      renderLibrarySummary();
+      toast('모두 삭제했어요');
+    }
+
+    // ============================================================
+    // 이미지 업로드 (프레임·스티커) — 관리 화면에서만
+    // ============================================================
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지를 읽을 수 없습니다')); };
+        img.src = url;
+      });
+    }
+
+    // 저장 전에 크기를 맞춰 용량과 속도를 줄인다 (프레임은 최종 출력과 같은 1200×1800)
+    async function normalizeUpload(file, type) {
+      const img = await loadImageFromFile(file);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      let mime = 'image/png';
+      let quality;
+
+      if (type === 'frame') {
+        canvas.width = FRAME_W;
+        canvas.height = FRAME_H;
+        if (file.type === 'image/jpeg') { mime = 'image/jpeg'; quality = 0.92; }
+        ctx.drawImage(img, 0, 0, FRAME_W, FRAME_H);
+      } else {
+        const longest = Math.max(img.naturalWidth, img.naturalHeight);
+        const scale = Math.min(1, STICKER_MAX / longest);
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      return canvas.toDataURL(mime, quality);
+    }
+
+    async function uploadAssets(event, type) {
+      const files = Array.from(event.target.files);
+      event.target.value = '';
+      if (files.length === 0) return;
+
+      let ok = 0, fail = 0;
+      for (const file of files) {
+        try {
+          const data = await normalizeUpload(file, type);
+          await addAsset(type, data);
+          ok++;
+        } catch (err) {
+          console.error('업로드 실패:', err);
+          fail++;
+        }
+      }
+      renderAdmin();
+      renderLibrarySummary();
+      const label = type === 'frame' ? '프레임' : '스티커';
+      toast(`${label} ${ok}장을 저장했어요` + (fail ? ` (${fail}장 실패)` : ''));
+    }
+
+    // ============================================================
+    // 백업 내보내기 / 불러오기
+    // ============================================================
+    function exportBackup() {
+      const items = [
+        ...library.frame.map(a => ({ type: 'frame', data: a.data })),
+        ...library.sticker.map(a => ({ type: 'sticker', data: a.data }))
+      ];
+      if (items.length === 0) { toast('저장된 항목이 없어요'); return; }
+      const payload = { app: 'lifecut-photobooth', version: 3, items };
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      link.href = url;
+      link.download = `${FILE_PREFIX}_백업_${stamp}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    async function importBackup(event) {
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      try {
+        const payload = JSON.parse(await file.text());
+        if (!payload || !Array.isArray(payload.items)) throw new Error('형식 오류');
+        const existing = new Set([...library.frame, ...library.sticker].map(a => a.data));
+        let added = 0;
+        for (const item of payload.items) {
+          if (!item || !library[item.type]) continue;
+          if (typeof item.data !== 'string' || !item.data.startsWith('data:image/')) continue;
+          if (existing.has(item.data)) continue;
+          await addAsset(item.type, item.data);
+          existing.add(item.data);
+          added++;
+        }
+        renderAdmin();
+        renderLibrarySummary();
+        toast(`${added}개를 불러왔어요`);
+      } catch (err) {
+        console.error(err);
+        toast('백업 파일을 불러오지 못했어요');
+      }
+    }
+
+    // ============================================================
+    // 관리 화면
+    // ============================================================
+    function openAdmin() {
+      const pin = prompt('관리 비밀번호를 입력하세요');
+      if (pin === null) return;
+      if (pin !== ADMIN_PIN) { toast('비밀번호가 맞지 않아요'); return; }
+      renderAdmin();
+      showScreen('adminScreen');
+    }
+
+    function closeAdmin() {
+      renderLibrarySummary();
+      showScreen('startScreen');
+    }
+
+    function renderAdmin() {
+      document.getElementById('adminFrameCount').textContent = library.frame.length;
+      document.getElementById('adminStickerCount').textContent = library.sticker.length;
+      renderAdminGrid('frame', 'adminFrameList');
+      renderAdminGrid('sticker', 'adminStickerList');
+    }
+
+    function renderAdminGrid(type, containerId) {
+      const grid = document.getElementById(containerId);
+      grid.innerHTML = '';
+      library[type].forEach(asset => {
+        const item = document.createElement('div');
+        item.className = 'admin-item' + (type === 'sticker' ? ' sticker' : '');
+        const img = document.createElement('img');
+        img.src = asset.data;
+        img.alt = type === 'frame' ? '프레임' : '스티커';
+        const del = document.createElement('button');
+        del.className = 'admin-del';
+        del.textContent = '✕';
+        del.onclick = () => deleteAsset(type, asset.id);
+        item.appendChild(img);
+        item.appendChild(del);
+        grid.appendChild(item);
+      });
+    }
+
+    function renderLibrarySummary() {
+      const el = document.getElementById('libSummary');
+      let text = `저장된 프레임 ${library.frame.length}장 · 스티커 ${library.sticker.length}장`;
+      if (!dbAvailable) text += '\n⚠️ 저장소를 쓸 수 없어 이번 접속 동안만 유지돼요 (시크릿 모드인지 확인하세요)';
+      el.textContent = text;
+      el.style.whiteSpace = 'pre-line';
+    }
+
+    // ============================================================
+    // 단계 표시 / 화면 전환
+    // ============================================================
+    function updateStep(step) {
+      currentStep = step;
+      document.querySelectorAll('.step').forEach((el, idx) => {
+        el.classList.remove('active', 'completed');
+        if (idx < step) el.classList.add('completed');
+        if (idx === step) el.classList.add('active');
+      });
+    }
+
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+    }
+
+    // ============================================================
+    // 촬영
+    // ============================================================
+    async function startPhotoSession() {
+      const token = sessionToken;
+      updateStep(1);
+      showScreen('cameraScreen');
+      await startCamera();
+      if (token !== sessionToken) return;   // 카메라 오류 등으로 이미 처음 화면으로 돌아갔으면 중단
+      startAutoCaptureSequence();
+    }
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1080 },
+            height: { ideal: 1440 }
+          },
+          audio: false
+        });
+        document.getElementById('video').srcObject = stream;
+      } catch (err) {
+        console.error('카메라 오류:', err);
+        alert('카메라 접근 권한이 필요합니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
+        resetSession();
+      }
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+    }
+
+    function startAutoCaptureSequence() {
+      isCapturing = true;
+      currentPhotoNumber = 1;
+      startCaptureCountdown();
+    }
+
+    function startCaptureCountdown() {
+      remainingTime = CAPTURE_SECONDS;
+      updateTimerDisplay();
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        remainingTime--;
+        updateTimerDisplay();
+
+        // 마지막 3초는 애니메이션 효과
+        if (remainingTime <= 3 && remainingTime > 0) {
+          const el = document.getElementById('timerDisplay');
+          el.classList.add('countdown-animation');
+          setTimeout(() => el.classList.remove('countdown-animation'), 1000);
+        }
+
+        // 0초가 되면 사진 촬영
+        if (remainingTime <= 0) {
+          capturePhotoAuto();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const timerDisplay = document.getElementById('timerDisplay');
+      const photoProgress = document.getElementById('photoProgress');
+
+      if (remainingTime > 0) {
+        timerDisplay.textContent = remainingTime;
+        photoProgress.textContent = `${currentPhotoNumber}번째 사진 준비중...`;
+      } else {
+        timerDisplay.textContent = '📸';
+        photoProgress.textContent = '찰칵!';
+      }
+    }
+
+    async function capturePhotoAuto() {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      const token = sessionToken;
+
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // 3:4 비율로 캔버스 설정
+      canvas.width = 1080;
+      canvas.height = 1440;
+
+      // 비디오를 3:4 비율로 크롭하여 그리기
+      const videoAspect = video.videoWidth / video.videoHeight;
+      const targetAspect = 3 / 4;
+
+      let sx, sy, sWidth, sHeight;
+
+      if (videoAspect > targetAspect) {
+        // 비디오가 더 넓음 - 좌우 크롭
+        sHeight = video.videoHeight;
+        sWidth = sHeight * targetAspect;
+        sx = (video.videoWidth - sWidth) / 2;
+        sy = 0;
+      } else {
+        // 비디오가 더 높음 - 상하 크롭
+        sWidth = video.videoWidth;
+        sHeight = sWidth / targetAspect;
+        sx = 0;
+        sy = (video.videoHeight - sHeight) / 2;
+      }
+
+      // 좌우반전 없이 정상으로 그리기 (배경 글씨 정상)
+      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+
+      capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.95));
+      updateCapturedPhotos();
+      currentPhotoNumber++;
+
+      if (capturedPhotos.length < TOTAL_SHOTS) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (token !== sessionToken) return;
+        startCaptureCountdown();
+      } else {
+        isCapturing = false;
+        stopCamera();
+        document.getElementById('timerDisplay').textContent = '✅';
+        document.getElementById('photoProgress').textContent = '촬영 완료!';
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (token !== sessionToken) return;
+        goToSelection();
+      }
+    }
+
+    function updateCapturedPhotos() {
+      const container = document.getElementById('capturedPhotos');
+      container.innerHTML = '';
+      capturedPhotos.forEach(photo => {
+        const div = document.createElement('div');
+        div.className = 'captured-photo';
+        div.innerHTML = `<img src="${photo}" alt="촬영된 사진">`;
+        container.appendChild(div);
+      });
+      document.getElementById('photoCount').textContent = capturedPhotos.length;
+    }
+
+    // ============================================================
+    // 사진 고르기 (제한 시간 SELECT_SECONDS)
+    // ============================================================
+    function goToSelection() {
+      selectedPhotos = [];
+      document.getElementById('selectedCount').textContent = '0';
+      document.getElementById('confirmSelectionBtn').disabled = true;
+      updateStep(2);
+      showScreen('selectionScreen');
+      displaySelectionGrid();
+      startPhaseTimer(SELECT_SECONDS, '사진 고르기', onSelectionTimeUp);
+    }
+
+    function displaySelectionGrid() {
+      const grid = document.getElementById('selectionGrid');
+      grid.innerHTML = '';
+      capturedPhotos.forEach((photo, idx) => {
+        const div = document.createElement('div');
+        div.className = 'selectable-photo';
+        div.innerHTML = `<img src="${photo}" alt="사진 ${idx + 1}">`;
+        div.onclick = () => togglePhotoSelection(idx, div);
+        grid.appendChild(div);
+      });
+    }
+
+    function togglePhotoSelection(idx, element) {
+      const photoIdx = selectedPhotos.indexOf(idx);
+
+      if (photoIdx > -1) {
+        selectedPhotos.splice(photoIdx, 1);
+        element.classList.remove('selected');
+      } else {
+        if (selectedPhotos.length >= PICK_COUNT) {
+          toast('최대 4장까지만 선택할 수 있어요!');
+          return;
+        }
+        selectedPhotos.push(idx);
+        element.classList.add('selected');
+      }
+
+      // 선택 순서 번호 갱신
+      document.querySelectorAll('.selectable-photo').forEach((el, i) => {
+        el.querySelector('.selection-order')?.remove();
+        const order = selectedPhotos.indexOf(i);
+        if (order > -1) {
+          const badge = document.createElement('div');
+          badge.className = 'selection-order';
+          badge.textContent = order + 1;
+          el.appendChild(badge);
+        }
+      });
+
+      document.getElementById('selectedCount').textContent = selectedPhotos.length;
+      document.getElementById('confirmSelectionBtn').disabled = selectedPhotos.length !== PICK_COUNT;
+    }
+
+    // 고른 순서는 그대로 두고, 모자란 칸은 아직 안 고른 사진을 촬영 순서대로 채운다
+    function computeAutoFill(selected, total, need) {
+      const result = selected.slice(0, need);
+      for (let i = 0; i < total && result.length < need; i++) {
+        if (!result.includes(i)) result.push(i);
+      }
+      return result;
+    }
+
+    function onSelectionTimeUp() {
+      const before = selectedPhotos.length;
+      selectedPhotos = computeAutoFill(selectedPhotos, capturedPhotos.length, PICK_COUNT);
+      if (before < PICK_COUNT) toast('시간이 끝나서 남은 칸은 촬영 순서대로 채웠어요');
+      enterDecoratePhase();
+    }
+
+    function confirmSelection() {
+      if (selectedPhotos.length !== PICK_COUNT) {
+        toast('정확히 4장을 선택해주세요!');
+        return;
+      }
+      stopPhaseTimer();
+      enterDecoratePhase();
+    }
+
+    // ============================================================
+    // 꾸미기 (프레임 고르기 + 스티커 붙이기, 합쳐서 DECORATE_SECONDS)
+    // ============================================================
+    function applyDefaultFrame() {
+      // 저장된 프레임이 있으면 첫 번째를 기본으로 (시간이 끝나도 빈 흰 배경이 나오지 않게)
+      if (library.frame.length > 0) {
+        selectedFrameId = library.frame[0].id;
+        selectedFrame = library.frame[0].data;
+      } else {
+        selectedFrameId = null;
+        selectedFrame = 'none';
+      }
+    }
+
+    function enterDecoratePhase() {
+      isLocked = false;
+      hasOutput = false;
+      applyDefaultFrame();
+      updateStep(3);
+      showScreen('frameScreen');
+      renderFrameList();
+      startPhaseTimer(DECORATE_SECONDS, '꾸미기 남은 시간', finalizeDecoration);
+    }
+
+    // 미리보기에서 프레임 고르는 화면으로 돌아가기 (타이머는 계속 흐름)
+    function goToFrame() {
+      if (isLocked) return;
+      updateStep(3);
+      showScreen('frameScreen');
+      renderFrameList();
+    }
+
+    function renderFrameList() {
+      const list = document.getElementById('frameList');
+      list.innerHTML = '';
+
+      const none = document.createElement('div');
+      none.className = 'frame-option';
+      none.dataset.id = 'none';
+      none.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 1.2em; color: #999;">프레임 없음</div>';
+      none.onclick = () => selectFrameById(null);
+      list.appendChild(none);
+
+      library.frame.forEach(asset => {
+        const div = document.createElement('div');
+        div.className = 'frame-option';
+        div.dataset.id = String(asset.id);
+        const img = document.createElement('img');
+        img.src = asset.data;
+        img.alt = '프레임';
+        div.appendChild(img);
+        div.onclick = () => selectFrameById(asset.id);
+        list.appendChild(div);
+      });
+
+      updateFrameSelectionUI();
+    }
+
+    function selectFrameById(id) {
+      selectedFrameId = id;
+      if (id === null) {
+        selectedFrame = 'none';
+      } else {
+        const found = library.frame.find(a => a.id === id);
+        selectedFrame = found ? found.data : 'none';
+      }
+      updateFrameSelectionUI();
+    }
+
+    function updateFrameSelectionUI() {
+      const current = selectedFrameId === null ? 'none' : String(selectedFrameId);
+      document.querySelectorAll('#frameList .frame-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.id === current);
+      });
+    }
+
+    // 스티커 선택 목록 (누르면 사진 위에 추가)
+    function renderPreviewStickerPicker() {
+      const picker = document.getElementById('previewStickerPicker');
+      picker.innerHTML = '';
+      if (library.sticker.length === 0) {
+        picker.innerHTML = '<p class="sticker-empty-hint">저장된 스티커가 없습니다</p>';
+        return;
+      }
+      library.sticker.forEach(asset => {
+        const div = document.createElement('div');
+        div.className = 'sticker-thumb clickable';
+        const img = document.createElement('img');
+        img.src = asset.data;
+        img.alt = '스티커';
+        div.appendChild(img);
+        div.onclick = () => addStickerInstance(asset.data);
+        picker.appendChild(div);
+      });
+    }
+
+    function addStickerInstance(src) {
+      if (isLocked) return;
+      const id = ++stickerIdSeq;
+      const offset = (placedStickers.length % 5) * 0.04;
+      const sticker = {
+        id,
+        src,
+        aspect: 1,
+        xRatio: 0.375 + offset,
+        yRatio: 0.375 + offset,
+        wRatio: 0.25,
+        rotation: 0
+      };
+
+      const img = new Image();
+      img.onload = () => {
+        sticker.aspect = img.naturalWidth / img.naturalHeight;
+        if (document.getElementById('previewScreen').classList.contains('active')) {
+          renderStickerLayer();
+        }
+      };
+      img.src = src;
+
+      placedStickers.push(sticker);
+      activeStickerId = id;
+
+      if (document.getElementById('previewScreen').classList.contains('active')) {
+        renderStickerLayer();
+      }
+    }
+
+    function removeStickerInstance(id) {
+      if (isLocked) return;
+      placedStickers = placedStickers.filter(s => s.id !== id);
+      if (activeStickerId === id) activeStickerId = null;
+      renderStickerLayer();
+    }
+
+    function setActiveSticker(id) {
+      activeStickerId = id;
+      document.querySelectorAll('.sticker-item').forEach(el => {
+        el.classList.toggle('active', Number(el.dataset.stickerId) === id);
+      });
+    }
+
+    function updateStickerElementStyle(el, sticker, rect) {
+      const aspect = sticker.aspect || 1;
+      const widthPx = sticker.wRatio * rect.width;
+      const heightPx = widthPx / aspect;
+      el.style.left = (sticker.xRatio * rect.width) + 'px';
+      el.style.top = (sticker.yRatio * rect.height) + 'px';
+      el.style.width = widthPx + 'px';
+      el.style.height = heightPx + 'px';
+      el.style.transform = `rotate(${sticker.rotation}deg)`;
+    }
+
+    function renderStickerLayer() {
+      const layer = document.getElementById('stickerLayer');
+      if (!layer) return;
+      layer.innerHTML = '';
+      const rect = layer.getBoundingClientRect();
+
+      placedStickers.forEach(sticker => {
+        const el = document.createElement('div');
+        el.className = 'sticker-item' + (!isLocked && sticker.id === activeStickerId ? ' active' : '');
+        el.dataset.stickerId = sticker.id;
+        el.innerHTML = `
+          <img src="${sticker.src}" alt="스티커" draggable="false">
+          <div class="sticker-delete">✕</div>
+          <div class="sticker-resize"></div>
+        `;
+        updateStickerElementStyle(el, sticker, rect);
+
+        // 확정된 뒤에는 움직이거나 지울 수 없도록 이벤트를 달지 않는다
+        if (!isLocked) {
+          el.addEventListener('pointerdown', (e) => onStickerPointerDown(e, sticker, el));
+          el.querySelector('.sticker-delete').addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            removeStickerInstance(sticker.id);
+          });
+          el.querySelector('.sticker-resize').addEventListener('pointerdown', (e) => {
+            onStickerResizeStart(e, sticker, el);
+          });
+        }
+
+        layer.appendChild(el);
+      });
+    }
+
+    // 스티커 이동
+    function onStickerPointerDown(e, sticker, el) {
+      if (isLocked) return;
+      if (e.target.closest('.sticker-delete') || e.target.closest('.sticker-resize')) return;
+      e.preventDefault();
+      setActiveSticker(sticker.id);
+
+      const layer = document.getElementById('stickerLayer');
+      const rect = layer.getBoundingClientRect();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startXRatio = sticker.xRatio;
+      const startYRatio = sticker.yRatio;
+
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+
+      function move(ev) {
+        if (isLocked) return;
+        sticker.xRatio = startXRatio + (ev.clientX - startX) / rect.width;
+        sticker.yRatio = startYRatio + (ev.clientY - startY) / rect.height;
+        updateStickerElementStyle(el, sticker, rect);
+      }
+      function up() {
+        el.removeEventListener('pointermove', move);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+      }
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    }
+
+    // 스티커 크기/회전 (모서리 핸들)
+    function onStickerResizeStart(e, sticker, el) {
+      if (isLocked) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveSticker(sticker.id);
+
+      const layer = document.getElementById('stickerLayer');
+      const rect = layer.getBoundingClientRect();
+      const handle = e.currentTarget;
+
+      const widthPx = sticker.wRatio * rect.width;
+      const heightPx = widthPx / (sticker.aspect || 1);
+      const centerX = rect.left + sticker.xRatio * rect.width + widthPx / 2;
+      const centerY = rect.top + sticker.yRatio * rect.height + heightPx / 2;
+
+      const startDist = Math.hypot(e.clientX - centerX, e.clientY - centerY) || 1;
+      const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+      const startWRatio = sticker.wRatio;
+      const startRotation = sticker.rotation;
+
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+
+      function move(ev) {
+        if (isLocked) return;
+        const dist = Math.hypot(ev.clientX - centerX, ev.clientY - centerY);
+        const angle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) * 180 / Math.PI;
+        const scale = dist / startDist;
+        sticker.wRatio = Math.min(Math.max(startWRatio * scale, 0.05), 1.5);
+        sticker.rotation = startRotation + (angle - startAngle);
+        updateStickerElementStyle(el, sticker, rect);
+      }
+      function up() {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+      }
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function goToPreview() {
+      updateStep(4);
+      showScreen('previewScreen');
+      applyLockUI();
+      renderPreviewStickerPicker();
+      await generateFinalImage();
+      renderStickerLayer();
+    }
+
+    // 확정 여부에 따라 미리보기 화면의 버튼·안내를 바꾼다
+    function applyLockUI() {
+      document.getElementById('previewScreen').classList.toggle('locked', isLocked);
+      document.getElementById('previewTitle').textContent =
+        isLocked ? '✅ 완성되었습니다!' : '✨ 스티커를 붙여 꾸며 보세요!';
+      if (isLocked) activeStickerId = null;
+    }
+
+    // 시간이 끝났거나 '꾸미기 끝내기'를 눌렀을 때: 지금 상태 그대로 확정
+    async function finalizeDecoration() {
+      if (isLocked) return;
+      isLocked = true;
+      stopPhaseTimer();
+      const previewActive = document.getElementById('previewScreen').classList.contains('active');
+      if (!previewActive) {
+        await goToPreview();            // 프레임 고르는 중이었다면 지금 상태로 완성 화면으로
+      } else {
+        applyLockUI();
+        renderStickerLayer();
+      }
+    }
+
+    function finishDecorationEarly() {
+      if (!confirm('꾸미기를 끝낼까요?\n끝나면 더 이상 고칠 수 없어요.')) return;
+      finalizeDecoration();
+    }
+
+    // ============================================================
+    // 최종 이미지 (4×6인치, 300 DPI = 1200×1800)
+    // ============================================================
+    async function generateFinalImage() {
+      const canvas = document.getElementById('finalCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = FRAME_W;
+      canvas.height = FRAME_H;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (selectedFrame !== 'none') {
+        const frameImg = await loadImage(selectedFrame);
+        ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+      }
+      await drawPhotosOnCanvas(ctx, canvas.width, canvas.height);
+    }
+
+    async function drawPhotosOnCanvas(ctx, canvasWidth, canvasHeight) {
+      const marginTop = 70;
+      const marginBottom = 180;
+      const marginSide = 60;
+      const gap = 30;
+
+      const availableHeight = canvasHeight - marginTop - marginBottom;
+      const availableWidth = canvasWidth - (marginSide * 2);
+
+      const photoWidth = (availableWidth - gap) / 2;
+      const photoHeight = (availableHeight - gap) / 2;
+
+      // 선택 순서대로: 좌상, 우상, 좌하, 우하
+      const positions = [
+        { x: marginSide, y: marginTop },
+        { x: marginSide + photoWidth + gap, y: marginTop },
+        { x: marginSide, y: marginTop + photoHeight + gap },
+        { x: marginSide + photoWidth + gap, y: marginTop + photoHeight + gap }
+      ];
+
+      const images = await Promise.all(selectedPhotos.map(photoIdx => loadImage(capturedPhotos[photoIdx])));
+      images.forEach((img, i) => {
+        ctx.drawImage(img, positions[i].x, positions[i].y, photoWidth, photoHeight);
+      });
+    }
+
+    // 프레임 + 사진 + 스티커를 하나의 캔버스에 합성
+    async function buildExportCanvas() {
+      const canvas = document.createElement('canvas');
+      canvas.width = FRAME_W;
+      canvas.height = FRAME_H;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (selectedFrame !== 'none') {
+        const frameImg = await loadImage(selectedFrame);
+        ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+      }
+      await drawPhotosOnCanvas(ctx, canvas.width, canvas.height);
+
+      for (const sticker of placedStickers) {
+        const img = await loadImage(sticker.src);
+        const aspect = img.naturalWidth / img.naturalHeight;
+        const widthPx = sticker.wRatio * canvas.width;
+        const heightPx = widthPx / aspect;
+        const centerX = sticker.xRatio * canvas.width + widthPx / 2;
+        const centerY = sticker.yRatio * canvas.height + heightPx / 2;
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(sticker.rotation * Math.PI / 180);
+        ctx.drawImage(img, -widthPx / 2, -heightPx / 2, widthPx, heightPx);
+        ctx.restore();
+      }
+
+      return canvas;
+    }
+
+    // ============================================================
+    // 인쇄 / 저장
+    // ============================================================
+    async function printPhoto() {
+      try {
+        const canvas = await buildExportCanvas();
+        const img = document.getElementById('printImage');
+        img.src = canvas.toDataURL('image/jpeg', 0.95);
+        await img.decode();
+        hasOutput = true;
+        window.print();
+      } catch (err) {
+        console.error('인쇄 준비 실패:', err);
+        toast('인쇄 준비에 실패했어요. 저장하기를 눌러 주세요');
+      }
+    }
+
+    async function downloadPhoto() {
+      const canvas = await buildExportCanvas();
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      link.download = `${FILE_PREFIX}_${timestamp}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+      hasOutput = true;
+      toast('✅ 사진이 저장되었습니다');
+    }
+
+    function nextCustomer() {
+      if (!hasOutput && !confirm('아직 인쇄하거나 저장하지 않았어요.\n그래도 다음 손님으로 넘어갈까요?')) return;
+      resetSession();
+    }
+
+    // ============================================================
+    // 세션 리셋 (손님 사진은 모두 지움, 저장된 프레임·스티커는 그대로)
+    // ============================================================
+    function resetSession() {
+      sessionToken++;
+      stopPhaseTimer();
+
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      stopCamera();
+
+      capturedPhotos = [];
+      selectedPhotos = [];
+      selectedFrame = 'none';
+      selectedFrameId = null;
+      remainingTime = CAPTURE_SECONDS;
+      currentPhotoNumber = 1;
+      isCapturing = false;
+      placedStickers = [];
+      activeStickerId = null;
+      isLocked = false;
+      hasOutput = false;
+
+      // 화면에 남은 손님 사진 흔적 지우기
+      const finalCanvas = document.getElementById('finalCanvas');
+      finalCanvas.width = 1;
+      finalCanvas.height = 1;
+      document.getElementById('printImage').removeAttribute('src');
+      document.getElementById('stickerLayer').innerHTML = '';
+      document.getElementById('previewScreen').classList.remove('locked');
+
+      updateStep(0);
+      showScreen('startScreen');
+      document.getElementById('photoCount').textContent = '0';
+      document.getElementById('capturedPhotos').innerHTML = '';
+      document.getElementById('selectionGrid').innerHTML = '';
+      document.getElementById('selectedCount').textContent = '0';
+      document.getElementById('confirmSelectionBtn').disabled = true;
+      document.getElementById('timerDisplay').textContent = CAPTURE_SECONDS;
+      document.getElementById('photoProgress').textContent = '1번째 사진 준비중...';
+      renderLibrarySummary();
+    }
+
+    window.addEventListener('resize', () => {
+      if (document.getElementById('previewScreen').classList.contains('active')) {
+        renderStickerLayer();
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (countdownInterval) clearInterval(countdownInterval);
+      stopCamera();
+    });
+
+    // ============================================================
+    // 시작
+    // ============================================================
+    async function init() {
+      document.title = APP_TITLE.replace(/^[^\p{L}\p{N}]+/u, '').trim() || APP_TITLE;
+      document.getElementById('appTitle').textContent = APP_TITLE;
+      document.getElementById('startCaptureSec').textContent = CAPTURE_SECONDS;
+      document.getElementById('startSelectSec').textContent = SELECT_SECONDS;
+      document.getElementById('startDecorateSec').textContent = DECORATE_SECONDS;
+      document.getElementById('timerDisplay').textContent = CAPTURE_SECONDS;
+
+      await loadLibrary();
+      renderLibrarySummary();
+
+      // 브라우저가 저장 공간을 임의로 정리하지 않도록 요청
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+
+      // 오프라인에서도 열리도록 서비스 워커 등록 (sw.js 파일이 같은 폴더에 있어야 함)
+      if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('서비스 워커 등록 실패:', err));
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
