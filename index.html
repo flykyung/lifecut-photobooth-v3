@@ -12,10 +12,20 @@
       box-sizing: border-box;
     }
 
+    /* 화면 높이 (모바일 주소창을 뺀 실제 높이를 쓸 수 있으면 dvh 사용) */
+    :root {
+      --vh: 100vh;
+      --chrome: 345px;   /* 제목·단계·버튼 등 사진 외 영역이 차지하는 높이 */
+    }
+
+    @supports (height: 100dvh) {
+      :root { --vh: 100dvh; }
+    }
+
     body {
       font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
+      min-height: var(--vh);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -23,7 +33,7 @@
     }
 
     body.has-timer {
-      padding-top: 80px;
+      padding-top: 50px;
     }
 
     .container {
@@ -38,7 +48,7 @@
     h1 {
       text-align: center;
       color: #667eea;
-      margin-bottom: 30px;
+      margin-bottom: 16px;
       font-size: 1.6em;
     }
 
@@ -50,18 +60,18 @@
       left: 0;
       right: 0;
       z-index: 100;
-      padding: 12px 10px;
+      padding: 6px 10px;
       text-align: center;
       background: #4caf50;
       color: white;
-      font-size: 1.5em;
+      font-size: 1em;
       font-weight: bold;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
 
     .top-timer .timer-value {
-      font-size: 1.4em;
-      margin: 0 4px;
+      font-size: 1.3em;
+      margin: 0 2px;
     }
 
     .top-timer.warn {
@@ -98,29 +108,28 @@
     }
 
     .step-indicator {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 30px;
-      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      max-width: 520px;
+      margin: 0 auto 16px;
     }
 
     .step {
-      flex: 1;
       text-align: center;
-      padding: 10px;
+      padding: 7px 0;
       background: #f0f0f0;
-      margin: 0 5px;
-      border-radius: 10px;
+      border-radius: 999px;
       font-weight: bold;
       color: #999;
-      transition: all 0.3s;
-      font-size: 0.9em;
+      transition: background 0.3s, color 0.3s;
+      font-size: 0.85em;
+      white-space: nowrap;
     }
 
     .step.active {
       background: #667eea;
       color: white;
-      transform: scale(1.05);
     }
 
     .step.completed {
@@ -174,28 +183,6 @@
       font-weight: bold;
     }
 
-    .timer-container {
-      text-align: center;
-      margin-bottom: 20px;
-      padding: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 15px;
-    }
-
-    .timer-display {
-      font-size: 55px;
-      color: white;
-      font-weight: bold;
-      text-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      margin-bottom: 10px;
-    }
-
-    .photo-progress {
-      font-size: 24px;
-      color: white;
-      font-weight: bold;
-    }
-
     .countdown-animation {
       animation: pulse 1s ease-in-out;
     }
@@ -205,19 +192,63 @@
       50% { transform: scale(1.2); }
     }
 
+    /* 카메라 + 찍힌 사진 줄을 한 화면에 (스크롤 없이) */
     .capture-layout {
+      --cam-h: min(calc(var(--vh) - var(--chrome)), calc((min(100vw, 1200px) - 100px) * 4 / 3), 900px);
+      width: calc(var(--cam-h) * 3 / 4);
+      max-width: 100%;
+      margin: 0 auto 12px;
       display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .camera-container {
-      flex: 2;
       position: relative;
       background: #000;
       border-radius: 15px;
       overflow: hidden;
       aspect-ratio: 3/4;
+    }
+
+    /* 카메라 위에 겹쳐 보이는 카운트다운 */
+    .cam-timer {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(64px, 20vw, 140px);
+      font-weight: bold;
+      color: rgba(255,255,255,0.9);
+      text-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    .cam-count,
+    .cam-progress {
+      position: absolute;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      font-weight: bold;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .cam-count {
+      top: 10px;
+      left: 10px;
+      padding: 4px 12px;
+      font-size: 0.95em;
+    }
+
+    .cam-progress {
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 14px;
+      font-size: 0.85em;
+      white-space: nowrap;
     }
 
     #video {
@@ -232,19 +263,17 @@
     }
 
     .captured-photos {
-      flex: 1;
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(3, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
     }
 
     .captured-photo {
       aspect-ratio: 3/4;
       background: #f0f0f0;
-      border-radius: 10px;
+      border-radius: 6px;
       overflow: hidden;
-      border: 3px solid #ddd;
+      border: 2px solid #ddd;
     }
 
     .captured-photo img {
@@ -256,23 +285,25 @@
     /* 선택 화면 */
     .selection-info {
       text-align: center;
-      margin-bottom: 20px;
-      padding: 15px;
-      background: #f8f9fa;
-      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    .selection-info .photo-count {
+      margin-bottom: 4px;
     }
 
     .selection-info p {
-      color: #666;
-      margin: 5px 0;
+      color: #999;
+      font-size: 0.85em;
     }
 
+    /* 3×2 배치, 높이에 맞춰 폭을 줄여 스크롤 없이 */
     .selection-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
+      gap: 10px;
+      width: min(100%, calc((var(--vh) - var(--chrome) - 20px) * 9 / 8));
+      margin: 0 auto 16px;
     }
 
     .selectable-photo {
@@ -306,13 +337,13 @@
       left: 10px;
       background: #667eea;
       color: white;
-      width: 50px;
-      height: 50px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28px;
+      font-size: 20px;
       font-weight: bold;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
@@ -367,11 +398,56 @@
       text-align: left;
     }
 
+    /* 프레임 목록: 작은 칸으로 고정, 많아지면 이 안에서만 스크롤 */
     .frame-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 15px;
-      margin-bottom: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+      gap: 10px;
+      max-width: 640px;
+      max-height: calc(var(--vh) - var(--chrome));
+      overflow-y: auto;
+      margin: 0 auto 16px;
+      padding: 4px;
+    }
+
+    /* 내 갤러리에서 추가하는 칸 (프레임·스티커 공통) */
+    .gallery-add {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 2px dashed #667eea;
+      border-radius: 10px;
+      background: #f3f4ff;
+      color: #667eea;
+      font-weight: bold;
+      font-size: 0.85em;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .gallery-add .plus {
+      font-size: 1.8em;
+      line-height: 1;
+    }
+
+    .gallery-add input {
+      display: none;
+    }
+
+    .frame-list .gallery-add {
+      aspect-ratio: 2/3;
+    }
+
+    .sticker-grid .gallery-add {
+      aspect-ratio: 1/1;
+      border-radius: 8px;
+      font-size: 0.7em;
+    }
+
+    .sticker-grid .gallery-add .plus {
+      font-size: 1.6em;
     }
 
     .frame-option {
@@ -407,11 +483,18 @@
       padding: 20px;
     }
 
+    /* 스티커는 한 줄로, 많으면 옆으로 밀어서 보기 */
     .sticker-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 15px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 2px 2px 6px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .sticker-grid > * {
+      flex: 0 0 54px;
+      width: 54px;
     }
 
     .sticker-thumb {
@@ -439,20 +522,22 @@
     }
 
     .sticker-picker {
-      margin-bottom: 20px;
+      max-width: 520px;
+      margin: 0 auto 14px;
     }
 
     .sticker-picker-title {
       text-align: center;
       color: #666;
       font-weight: bold;
-      margin-bottom: 10px;
+      font-size: 0.9em;
+      margin-bottom: 6px;
     }
 
-    /* 미리보기 화면 */
+    /* 미리보기 화면 (화면 높이에 맞춘 폭은 fitPreviewToScreen에서 계산) */
     .preview-container {
-      max-width: 500px;
-      margin: 0 auto 20px;
+      width: min(100%, 500px);
+      margin: 0 auto 12px;
       position: relative;
     }
 
@@ -532,6 +617,7 @@
     }
 
     #finalCanvas {
+      display: block;
       width: 100%;
       border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
@@ -539,23 +625,23 @@
 
     .save-notice {
       text-align: center;
-      padding: 20px;
+      padding: 8px 12px;
       background: #fff3cd;
       border: 2px solid #ffc107;
       border-radius: 10px;
-      margin-bottom: 20px;
+      max-width: 520px;
+      margin: 0 auto 10px;
     }
 
     .save-notice p {
       color: #856404;
-      font-size: 1.1em;
+      font-size: 0.9em;
       font-weight: bold;
-      margin: 5px 0;
     }
 
     /* 확정(시간 종료/꾸미기 끝내기) 상태 */
-    .locked-only {
-      display: none;
+    #previewScreen:not(.locked) .locked-only {
+      display: none !important;
     }
 
     #previewScreen.locked .edit-only {
@@ -567,7 +653,7 @@
     }
 
     #previewScreen.locked .btn-container.locked-only {
-      display: flex;
+      display: grid;
     }
 
     #previewScreen.locked #stickerLayer {
@@ -628,22 +714,49 @@
     }
 
     /* 버튼 스타일 */
+    /* 버튼은 한 줄에 같은 폭으로 나란히 */
     .btn-container {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       justify-content: center;
-      flex-wrap: wrap;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .btn-container > button {
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: 260px;
+    }
+
+    /* 완성 화면: 인쇄하기는 크게 한 줄, 아래에 저장·다음 손님 */
+    .btn-container.btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .btn-container.btn-grid > button {
+      max-width: none;
+    }
+
+    .btn-container.btn-grid > .btn-wide {
+      grid-column: 1 / -1;
     }
 
     button {
-      padding: 15px 40px;
-      font-size: 1.1em;
+      padding: 13px 20px;
+      font-size: 1.05em;
       border: none;
       border-radius: 10px;
       cursor: pointer;
       font-weight: bold;
       transition: all 0.3s;
-      min-width: 150px;
+      white-space: nowrap;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 0.9em;
     }
 
     .btn-primary {
@@ -676,8 +789,6 @@
     .btn-success {
       background: #4caf50;
       color: white;
-      font-size: 1.3em;
-      padding: 20px 50px;
     }
 
     .btn-success:hover {
@@ -731,37 +842,59 @@
 
     /* 반응형 */
     @media (max-width: 768px) {
+      :root {
+        --chrome: 250px;
+      }
+
+      body {
+        padding: 10px;
+      }
+
+      body.has-timer {
+        padding-top: 42px;
+      }
+
+      .container {
+        padding: 16px 14px;
+        border-radius: 16px;
+      }
+
       h1 {
         font-size: 1.15em;
+        margin-bottom: 10px;
+      }
+
+      .step-indicator {
+        gap: 4px;
+        margin-bottom: 12px;
       }
 
       .step {
-        font-size: 0.7em;
-        padding: 8px 4px;
+        font-size: 0.75em;
+        padding: 6px 0;
+      }
+
+      .photo-count {
+        font-size: 1.1em;
+        margin-bottom: 10px;
       }
 
       .capture-layout {
-        flex-direction: column;
-      }
-
-      .captured-photos {
-        grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: repeat(2, 1fr);
+        --cam-h: min(calc(var(--vh) - var(--chrome)), calc((100vw - 48px) * 4 / 3));
       }
 
       .selection-grid {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: repeat(3, 1fr);
+        gap: 6px;
+      }
+
+      .preview-hint {
+        font-size: 0.8em;
+        margin-bottom: 8px;
       }
 
       button {
-        padding: 12px 25px;
+        padding: 12px 10px;
         font-size: 1em;
-        min-width: 120px;
-      }
-
-      .timer-display {
-        font-size: 40px;
       }
     }
   </style>
@@ -803,23 +936,19 @@
 
     <!-- 촬영 화면 -->
     <div class="screen" id="cameraScreen">
-      <div class="photo-count">📸 <span id="photoCount">0</span> / 6 장</div>
-
-      <div class="timer-container">
-        <div class="timer-display" id="timerDisplay">8</div>
-        <div class="photo-progress" id="photoProgress">1번째 사진 준비중...</div>
-      </div>
-
       <div class="capture-layout">
         <div class="camera-container">
           <video id="video" autoplay playsinline muted></video>
           <canvas id="canvas"></canvas>
+          <div class="cam-count"><span id="photoCount">0</span>/<span id="totalShots">6</span></div>
+          <div class="cam-timer" id="timerDisplay">8</div>
+          <div class="cam-progress" id="photoProgress">1번째 사진 준비중...</div>
         </div>
         <div class="captured-photos" id="capturedPhotos"></div>
       </div>
 
       <div class="btn-container">
-        <button class="btn-secondary" onclick="resetSession()">처음으로</button>
+        <button class="btn-secondary btn-small" onclick="resetSession()">처음으로</button>
       </div>
     </div>
 
@@ -827,8 +956,7 @@
     <div class="screen" id="selectionScreen">
       <div class="selection-info">
         <div class="photo-count">🎯 4장을 선택해주세요 (<span id="selectedCount">0</span>/4)</div>
-        <p style="font-size: 0.9em; color: #999;">💡 선택한 순서대로 배치됩니다 (좌→우, 위→아래)</p>
-        <p style="font-size: 0.9em; color: #999;">⏱️ 시간이 끝나면 남은 칸은 촬영 순서대로 자동으로 채워져요</p>
+        <p>고른 순서대로 배치 · 시간이 끝나면 자동으로 채워져요</p>
       </div>
       <div class="selection-grid" id="selectionGrid"></div>
       <div class="btn-container">
@@ -853,10 +981,10 @@
       <div class="photo-count" id="previewTitle">✨ 스티커를 붙여 꾸며 보세요!</div>
 
       <div class="save-notice locked-only">
-        <p>🖨️ 아래 인쇄하기를 누르고, 인쇄 창에서 '인쇄'를 눌러 주세요!</p>
+        <p>🖨️ 인쇄하기 → 인쇄 창에서 '인쇄'를 눌러 주세요</p>
       </div>
 
-      <p class="preview-hint edit-only">💡 스티커는 손가락으로 움직이고, 파란 점을 끌어서 크기·회전을 조절하세요</p>
+      <p class="preview-hint edit-only">💡 끌어서 이동 · 파란 점으로 크기·회전</p>
 
       <div class="preview-container">
         <canvas id="finalCanvas"></canvas>
@@ -864,17 +992,17 @@
       </div>
 
       <div class="sticker-picker edit-only">
-        <p class="sticker-picker-title">✨ 스티커 추가하기</p>
+        <p class="sticker-picker-title">✨ 눌러서 스티커 붙이기</p>
         <div class="sticker-grid" id="previewStickerPicker"></div>
       </div>
 
       <div class="btn-container edit-only">
+        <button class="btn-secondary" onclick="goToFrame()">🖼️ 프레임 변경</button>
         <button class="btn-success" onclick="finishDecorationEarly()">✅ 꾸미기 끝내기</button>
-        <button class="btn-secondary" onclick="goToFrame()">프레임 변경</button>
       </div>
 
-      <div class="btn-container locked-only">
-        <button class="btn-success" onclick="printPhoto()">🖨️ 인쇄하기</button>
+      <div class="btn-container btn-grid locked-only">
+        <button class="btn-success btn-wide" onclick="printPhoto()">🖨️ 인쇄하기</button>
         <button class="btn-secondary" onclick="downloadPhoto()">💾 저장하기</button>
         <button class="btn-danger" onclick="nextCustomer()">다음 손님</button>
       </div>
@@ -1283,6 +1411,7 @@
       const token = sessionToken;
       updateStep(1);
       showScreen('cameraScreen');
+      updateCapturedPhotos();
       await startCamera();
       if (token !== sessionToken) return;   // 카메라 오류 등으로 이미 처음 화면으로 돌아갔으면 중단
       startAutoCaptureSequence();
@@ -1387,8 +1516,12 @@
         sy = (video.videoHeight - sHeight) / 2;
       }
 
-      // 좌우반전 없이 정상으로 그리기 (배경 글씨 정상)
+      // 화면에 보이는 그대로(거울처럼 좌우반전) 저장
+      ctx.save();
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
       ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
 
       capturedPhotos.push(canvas.toDataURL('image/jpeg', 0.95));
       updateCapturedPhotos();
@@ -1412,12 +1545,13 @@
     function updateCapturedPhotos() {
       const container = document.getElementById('capturedPhotos');
       container.innerHTML = '';
-      capturedPhotos.forEach(photo => {
+      // 빈 칸도 미리 그려 두어 사진이 찍혀도 화면 높이가 변하지 않게
+      for (let i = 0; i < TOTAL_SHOTS; i++) {
         const div = document.createElement('div');
         div.className = 'captured-photo';
-        div.innerHTML = `<img src="${photo}" alt="촬영된 사진">`;
+        if (capturedPhotos[i]) div.innerHTML = `<img src="${capturedPhotos[i]}" alt="촬영된 사진">`;
         container.appendChild(div);
-      });
+      }
       document.getElementById('photoCount').textContent = capturedPhotos.length;
     }
 
@@ -1538,10 +1672,12 @@
       const list = document.getElementById('frameList');
       list.innerHTML = '';
 
+      list.appendChild(makeGalleryTile('frame', '내 갤러리에서<br>프레임 추가'));
+
       const none = document.createElement('div');
       none.className = 'frame-option';
       none.dataset.id = 'none';
-      none.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 1.2em; color: #999;">프레임 없음</div>';
+      none.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 0.9em; color: #999;">프레임 없음</div>';
       none.onclick = () => selectFrameById(null);
       list.appendChild(none);
 
@@ -1578,22 +1714,84 @@
       });
     }
 
+    // '내 갤러리에서 추가' 칸 (label로 감싸 휴대폰에서도 사진 선택 창이 바로 열림)
+    function makeGalleryTile(type, labelHtml) {
+      const tile = document.createElement('label');
+      tile.className = 'gallery-add';
+      tile.innerHTML = `<span class="plus">＋</span><span>${labelHtml}</span>`;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = type === 'sticker';
+      input.onchange = (e) => addFromGallery(e, type);
+      tile.appendChild(input);
+      return tile;
+    }
+
+    // 꾸미기 중 갤러리에서 고른 이미지: 저장소에 추가하고 바로 적용
+    async function addFromGallery(event, type) {
+      const files = Array.from(event.target.files);
+      event.target.value = '';
+      if (files.length === 0 || isLocked) return;
+
+      const token = sessionToken;
+      const added = [];
+      for (const file of files) {
+        try {
+          const data = await normalizeUpload(file, type);
+          await addAsset(type, data);
+          added.push(library[type][library[type].length - 1]);
+        } catch (err) {
+          console.error('갤러리 이미지 불러오기 실패:', err);
+        }
+      }
+      if (token !== sessionToken || isLocked) return;   // 그 사이 시간이 끝났거나 처음으로 돌아갔으면 적용하지 않음
+      if (added.length === 0) { toast('이미지를 불러오지 못했어요'); return; }
+
+      if (type === 'frame') {
+        renderFrameList();
+        selectFrameById(added[added.length - 1].id);
+      } else {
+        renderPreviewStickerPicker();
+        added.forEach(asset => addStickerInstance(asset.data));
+      }
+    }
+
+    // 기본 이모지 스티커 (저장된 스티커가 없어도 바로 쓸 수 있게)
+    const DEFAULT_STICKER_EMOJIS = ['❤️', '⭐', '✨', '🎉', '👑', '🌸', '😎', '🐰', '🍀', '🎀', '💕', '😺'];
+    let defaultStickers = null;
+
+    function getDefaultStickers() {
+      if (!defaultStickers) {
+        defaultStickers = DEFAULT_STICKER_EMOJIS.map(emoji => {
+          const c = document.createElement('canvas');
+          c.width = c.height = 256;
+          const ctx = c.getContext('2d');
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '200px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+          ctx.fillText(emoji, 128, 140);
+          return c.toDataURL('image/png');
+        });
+      }
+      return defaultStickers;
+    }
+
     // 스티커 선택 목록 (누르면 사진 위에 추가)
     function renderPreviewStickerPicker() {
       const picker = document.getElementById('previewStickerPicker');
       picker.innerHTML = '';
-      if (library.sticker.length === 0) {
-        picker.innerHTML = '<p class="sticker-empty-hint">저장된 스티커가 없습니다</p>';
-        return;
-      }
-      library.sticker.forEach(asset => {
+      picker.appendChild(makeGalleryTile('sticker', '갤러리'));
+
+      const sources = [...library.sticker.map(a => a.data), ...getDefaultStickers()];
+      sources.forEach(src => {
         const div = document.createElement('div');
         div.className = 'sticker-thumb clickable';
         const img = document.createElement('img');
-        img.src = asset.data;
+        img.src = src;
         img.alt = '스티커';
         div.appendChild(img);
-        div.onclick = () => addStickerInstance(asset.data);
+        div.onclick = () => addStickerInstance(src);
         picker.appendChild(div);
       });
     }
@@ -1777,7 +1975,19 @@
       applyLockUI();
       renderPreviewStickerPicker();
       await generateFinalImage();
+      fitPreviewToScreen();
       renderStickerLayer();
+    }
+
+    // 완성 사진이 화면 아래로 넘치면 넘친 만큼 사진 폭을 줄여 스크롤이 생기지 않게
+    function fitPreviewToScreen() {
+      const pc = document.querySelector('.preview-container');
+      pc.style.width = '';
+      const overflow = document.documentElement.scrollHeight - window.innerHeight;
+      if (overflow > 0) {
+        const h = pc.getBoundingClientRect().height - overflow - 2;
+        pc.style.width = Math.max(160, h * 2 / 3) + 'px';
+      }
     }
 
     // 확정 여부에 따라 미리보기 화면의 버튼·안내를 바꾼다
@@ -1798,6 +2008,7 @@
         await goToPreview();            // 프레임 고르는 중이었다면 지금 상태로 완성 화면으로
       } else {
         applyLockUI();
+        fitPreviewToScreen();
         renderStickerLayer();
       }
     }
@@ -1966,6 +2177,7 @@
 
     window.addEventListener('resize', () => {
       if (document.getElementById('previewScreen').classList.contains('active')) {
+        fitPreviewToScreen();
         renderStickerLayer();
       }
     });
@@ -1985,6 +2197,7 @@
       document.getElementById('startSelectSec').textContent = SELECT_SECONDS;
       document.getElementById('startDecorateSec').textContent = DECORATE_SECONDS;
       document.getElementById('timerDisplay').textContent = CAPTURE_SECONDS;
+      document.getElementById('totalShots').textContent = TOTAL_SHOTS;
 
       await loadLibrary();
       renderLibrarySummary();
