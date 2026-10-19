@@ -496,6 +496,32 @@
       object-fit: contain;
     }
 
+    /* 꾸미기 화면에서 저장된 프레임·스티커 하나씩 지우는 버튼 */
+    .asset-del {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      min-width: 0;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(244, 67, 54, 0.9);
+      color: white;
+      font-size: 13px;
+      line-height: 26px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .sticker-thumb .asset-del {
+      top: 1px;
+      right: 1px;
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+      line-height: 20px;
+    }
+
     .sticker-empty-hint {
       grid-column: 1 / -1;
       text-align: center;
@@ -534,6 +560,7 @@
 
     .sticker-thumb.clickable {
       cursor: pointer;
+      position: relative;
     }
 
     .sticker-thumb.clickable:hover {
@@ -1279,8 +1306,27 @@
         try { await dbDelete(id); } catch (err) { console.error(err); toast('삭제에 실패했어요'); return; }
       }
       library[type] = library[type].filter(a => a.id !== id);
+      if (type === 'frame' && selectedFrameId === id) applyDefaultFrame();
       renderAdmin();
       renderLibrarySummary();
+      // 꾸미기 화면에서 지웠을 때도 목록이 바로 바뀌게
+      renderFrameList();
+      if (stickerTab) renderPreviewStickerPicker();
+      toast('삭제했어요');
+    }
+
+    // 꾸미기 화면 칸에 붙이는 ✕ 삭제 버튼 (칸을 누른 것으로 처리되지 않게 막음)
+    function makeAssetDeleteButton(type, id) {
+      const del = document.createElement('button');
+      del.className = 'asset-del';
+      del.textContent = '✕';
+      del.title = type === 'frame' ? '이 프레임 삭제' : '이 스티커 삭제';
+      del.onclick = (e) => {
+        e.stopPropagation();
+        if (isLocked) return;
+        deleteAsset(type, id);
+      };
+      return del;
     }
 
     async function clearAllAssets() {
@@ -1836,6 +1882,7 @@
         img.src = asset.data;
         img.alt = '프레임';
         div.appendChild(img);
+        div.appendChild(makeAssetDeleteButton('frame', asset.id));
         div.onclick = () => selectFrameById(asset.id);
         list.appendChild(div);
       });
@@ -1943,25 +1990,27 @@
       picker.innerHTML = '';
       picker.scrollLeft = 0;
 
+      // 항목: { src, id } — id가 있으면 저장된 스티커라 삭제 버튼을 붙인다
       let sources;
       if (stickerTab === 'special') {
         picker.appendChild(makeGalleryTile('sticker', '갤러리'));
-        sources = library.sticker.map(a => a.data);
+        sources = library.sticker.map(a => ({ src: a.data, id: a.id }));
       } else {
-        sources = getDefaultStickers();
+        sources = getDefaultStickers().map(src => ({ src, id: null }));
       }
 
       if (sources.length === 0) {
         picker.insertAdjacentHTML('beforeend', '<p class="sticker-empty-hint">스티커가 없어요</p>');
         return;
       }
-      sources.forEach(src => {
+      sources.forEach(({ src, id }) => {
         const div = document.createElement('div');
         div.className = 'sticker-thumb clickable';
         const img = document.createElement('img');
         img.src = src;
         img.alt = '스티커';
         div.appendChild(img);
+        if (id !== null) div.appendChild(makeAssetDeleteButton('sticker', id));
         div.onclick = () => addStickerInstance(src);
         picker.appendChild(div);
       });
