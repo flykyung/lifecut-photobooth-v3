@@ -883,8 +883,9 @@
       display: none;
     }
 
+    /* 공유를 못 쓰는 기기에서만 쓰는 웹 인쇄. 셀피 엽서 용지(hagaki, 100×148mm)에 맞춤 */
     @page {
-      size: 4in 6in;
+      size: 100mm 148mm;
       margin: 0;
     }
 
@@ -907,8 +908,9 @@
 
       #printArea img {
         display: block;
-        width: 4in;
-        height: 6in;
+        width: 100mm;
+        height: 148mm;
+        object-fit: cover;
       }
     }
 
@@ -1174,6 +1176,7 @@
     let activeStickerId = null;
     let isLocked = false;            // 꾸미기 확정 여부
     let hasOutput = false;           // 인쇄/저장을 한 번이라도 했는지
+    let printFilePromise = null;     // 꾸미기 확정 뒤 미리 만들어 두는 인쇄용 사진 파일
 
     // 프레임·스티커 저장소 (메모리 사본)
     const library = { frame: [], sticker: [] };   // 항목: { id, data }
@@ -1845,6 +1848,7 @@
     function enterDecoratePhase() {
       isLocked = false;
       hasOutput = false;
+      printFilePromise = null;
       stickerTab = null;
       applyDefaultFrame();
       updateStep(3);
@@ -2231,6 +2235,7 @@
         fitPreviewToScreen();
         renderStickerLayer();
       }
+      if (canShareForPrint()) preparePrintFile();
     }
 
     function finishDecorationEarly() {
@@ -2328,7 +2333,65 @@
     // ============================================================
     // 인쇄 / 저장
     // ============================================================
+    // 웹페이지 인쇄는 문서로 취급되어 여백이 생기고 작게 나온다.
+    // 휴대폰·태블릿에서는 완성 사진을 파일로 공유해, 공유 창의 '인쇄'가 사진처럼 용지를 가득 채우게 한다.
+    function isMobileDevice() {
+      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);   // 아이패드
+    }
+
+    function canShareForPrint() {
+      if (!isMobileDevice() || !navigator.canShare || !window.File) return false;
+      try {
+        return navigator.canShare({ files: [new File([''], 'test.jpg', { type: 'image/jpeg' })] });
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function makeFileName() {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      return `${FILE_PREFIX}_${timestamp}.jpg`;
+    }
+
+    // 꾸미기가 확정되면 더 바뀌지 않으므로 미리 만들어 둔다 (버튼을 누르자마자 공유 창이 떠야 함)
+    function preparePrintFile() {
+      if (!printFilePromise) {
+        const promise = buildExportCanvas()
+          .then(canvas => new Promise((resolve, reject) => {
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('사진 변환 실패')), 'image/jpeg', 0.95);
+          }))
+          .then(blob => new File([blob], makeFileName(), { type: 'image/jpeg' }));
+        promise.catch(() => {
+          if (printFilePromise === promise) printFilePromise = null;   // 실패하면 다음에 다시 만든다
+        });
+        printFilePromise = promise;
+      }
+      return printFilePromise;
+    }
+
     async function printPhoto() {
+      if (canShareForPrint()) {
+        try {
+          const file = await preparePrintFile();
+          await navigator.share({ files: [file] });
+          hasOutput = true;
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;   // 공유 창을 닫은 경우
+          if (err && err.name === 'NotAllowedError') {
+            // 사진을 만드는 동안 시간이 지나 브라우저가 막은 경우 — 이제 파일이 준비됐으니 다시 누르면 된다
+            toast('한 번 더 눌러 주세요');
+            return;
+          }
+          console.error('공유로 인쇄 실패, 웹 인쇄로 전환:', err);
+        }
+      }
+      printPhotoWeb();
+    }
+
+    // 공유를 못 쓰는 기기(PC 등)에서는 예전처럼 브라우저 인쇄 창을 연다
+    async function printPhotoWeb() {
       try {
         const canvas = await buildExportCanvas();
         const img = document.getElementById('printImage');
@@ -2345,8 +2408,7 @@
     async function downloadPhoto() {
       const canvas = await buildExportCanvas();
       const link = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      link.download = `${FILE_PREFIX}_${timestamp}.jpg`;
+      link.download = makeFileName();
       link.href = canvas.toDataURL('image/jpeg', 0.95);
       link.click();
       hasOutput = true;
@@ -2382,6 +2444,7 @@
       activeStickerId = null;
       isLocked = false;
       hasOutput = false;
+      printFilePromise = null;
 
       // 화면에 남은 손님 사진 흔적 지우기
       const finalCanvas = document.getElementById('finalCanvas');
